@@ -1,52 +1,73 @@
 const editor = document.getElementById('editor');
+const preview = document.getElementById('preview');
 
-/* ===== Formatting ===== */
+/* ================= PREVIEW ================= */
+editor.addEventListener('input', updatePreview);
+
+function updatePreview(){
+  let text = editor.value;
+  if(!text){
+    preview.innerHTML = "<span style='color:#555'>Preview will appear here…</span>";
+    return;
+  }
+
+  let formatted = text
+    .replace(/```([\s\S]*?)```/g,'<code>$1</code>')
+    .replace(/\*(.*?)\*/g,'<b>$1</b>')
+    .replace(/_(.*?)_/g,'<i>$1</i>')
+    .replace(/~(.*?)~/g,'<del>$1</del>')
+    .replace(/\n/g,'<br>');
+
+  preview.innerHTML = formatted;
+}
+
+/* ================= FORMATTERS ================= */
 function wrapText(symbol){
   const s = editor.selectionStart;
   const e = editor.selectionEnd;
   if(s === e) return;
-  const t = editor.value;
-  editor.value = t.slice(0,s) + symbol + t.slice(s,e) + symbol + t.slice(e);
+  editor.setRangeText(symbol + editor.value.substring(s,e) + symbol, s, e, 'end');
+  updatePreview();
   editor.focus();
 }
 
 function makeList(){
   const s = editor.selectionStart;
   const e = editor.selectionEnd;
-  const t = editor.value.substring(s,e) || '';
-  const list = t.split('\n').map(l => '• ' + l).join('\n');
-  editor.setRangeText(list, s, e, 'end');
-  editor.focus();
+  const text = editor.value.substring(s,e) || '';
+  const list = text.split('\n').map(l=>'• '+l).join('\n');
+  editor.setRangeText(list,s,e,'end');
+  updatePreview();
 }
 
-function clearText(){
-  if(confirm('Clear message?')) editor.value = '';
-}
-
-/* ===== Templates ===== */
+/* ================= TEMPLATES ================= */
 function insertTemplate(type){
-  let msg = '';
-  if(type === 'pay'){
-    msg = "*Payment Reminder*\nInvoice: _INV-001_\nAmount Due: *₹5,000*\n\nPlease complete payment. Thank you 🙏";
-  }
-  if(type === 'balance'){
-    msg = "*Account Summary*\nTotal: *₹12,000*\nPaid: _₹7,000_\n*Balance: ₹5,000*";
-  }
-  editor.value += (editor.value ? "\n\n" : "") + msg;
-  editor.focus();
+  const t = {
+    payment:`*Payment Reminder*\nInvoice: _INV-001_\nAmount: *₹5,000*\nStatus: ~Pending~\n\nPlease complete payment 🙏`,
+    balance:`*Balance Update*\nTotal: *₹10,000*\nPaid: _₹4,000_\n*Due: ₹6,000*`
+  };
+  editor.value += (editor.value ? "\n\n" : "") + (t[type] || '');
+  updatePreview();
 }
 
-/* ===== Emoji ===== */
-document.querySelectorAll('.emoji').forEach(e=>{
-  e.onclick = ()=>{
+/* ================= EMOJIS ================= */
+document.querySelectorAll('.emoji').forEach(em=>{
+  em.onclick = ()=>{
     const s = editor.selectionStart;
-    const e2 = editor.selectionEnd;
-    editor.setRangeText(e.innerText, s, e2, 'end');
+    editor.setRangeText(em.innerText, s, s, 'end');
+    updatePreview();
     editor.focus();
   };
 });
 
-/* ===== Clipboard ===== */
+/* ================= ACTIONS ================= */
+function clearText(){
+  if(confirm("Clear message?")){
+    editor.value='';
+    updatePreview();
+  }
+}
+
 async function copyToClipboard(){
   if(!editor.value) return;
   await navigator.clipboard.writeText(editor.value);
